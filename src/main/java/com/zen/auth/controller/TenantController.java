@@ -20,9 +20,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 public class TenantController {
 
     @Autowired
@@ -80,6 +82,40 @@ public class TenantController {
             );
         }
     }
+    
+    @PostMapping("/validate")
+    public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String authHeader) {
+    	System.out.println("Calling validate method");
+        try {
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse<>(false, "Missing or invalid Authorization header", null));
+            }
+
+            String token = authHeader.replace("Bearer ", "");
+
+            if (!jwtUtil.validateToken(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse<>(false, "Invalid or expired token", null));
+            }
+
+            String username = jwtUtil.extractUsername(token);
+            String tenantId = jwtUtil.extractTenant(token);
+           // List<String> roles = jwtUtil.extractRoles(token);
+
+            Map<String, Object> claims = new HashMap<>();
+            claims.put("userId", username);
+            claims.put("tenantId", tenantId);
+          //  claims.put("roles", roles);
+
+            return ResponseEntity.ok(claims);
+
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponse<>(false, "Token validation failed", null));
+        }
+    }
+
 
     /**
      * Login using tenant-specific user
@@ -137,5 +173,10 @@ public class TenantController {
                     new ApiResponse<>(false, "Login failed: " + ex.getMessage(), null)
             );
         }
+    }
+    
+    @GetMapping("/auth/ping")
+    public ResponseEntity<String> ping() {
+        return ResponseEntity.ok("Auth service is alive");
     }
 }

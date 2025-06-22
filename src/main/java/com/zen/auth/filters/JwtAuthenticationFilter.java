@@ -3,16 +3,24 @@ package com.zen.auth.filters;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zen.auth.dto.ApiResponse;
 import com.zen.auth.services.ZenUserDetailsService;
 import com.zen.auth.utility.JwtUtil;
 
@@ -48,7 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             
             
             
-            if (requestPath.equals("/api/auth/login") || requestPath.equals("/api/auth/createAccount") ) {
+            if (requestPath.equals("/auth/login") || requestPath.equals("/auth/createAccount")) {
             	 CachedBodyHttpServletRequest wrappedRequest = new CachedBodyHttpServletRequest(request);
             	    
             	    // Read JSON body
@@ -61,7 +69,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             	    JsonNode emailNode = jsonNode.get("email");
 
             	    if (emailNode == null || emailNode.isNull()) {
-            	        throw new RuntimeException("Missing email  in request");
+            	        writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, "Missing email in request");
+            	        return;
             	    }
             	    
             	    String orgName = jwtUtil.extractTenantPrefix(emailNode.asText());
@@ -80,9 +89,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     email = jwtUtil.extractUsername(jwt); // Extracts subject from JWT
                     tenantId = jwtUtil.extractTenant(jwt);   // Custom claim "tenant"
                 } catch (Exception e) {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write("Invalid JWT token");
-                    return;
+                	e.printStackTrace();
+                	    writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");
+                	    return;
                 }
             }
 
@@ -96,8 +105,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     // First login protection
                     if (userDetails.isFirstLogin() && !request.getRequestURI().contains("/reset-password")) {
-                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                        response.getWriter().write("First-time login: password reset required");
+                    	  writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "First-time login: password reset required");
                         return;
                     }
 
@@ -119,4 +127,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         return email.substring(email.indexOf("@") + 1); // returns "org.com"
     }
+    
+    
+    private void writeErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
+        ApiResponse<String> errorResponse = new ApiResponse<>(false, message, null);
+        ObjectMapper mapper = new ObjectMapper();
+        String json = mapper.writeValueAsString(errorResponse);
+
+        response.getWriter().write(json);
+    }
+    
+  
+
 }
