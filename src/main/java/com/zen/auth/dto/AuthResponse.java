@@ -12,6 +12,7 @@ public class AuthResponse {
     private List<String> modules;
     private Long orgId;
     private String orgName;
+    private String tenantId;
     
 	public String getUsername() {
 		return username;
@@ -74,6 +75,12 @@ public class AuthResponse {
 	}
 	public void setOrgName(String orgName) {
 		this.orgName = orgName;
+	}
+	public String getTenantId() {
+		return tenantId;
+	}
+	public void setTenantId(String tenantId) {
+		this.tenantId = tenantId;
 	}
 
 

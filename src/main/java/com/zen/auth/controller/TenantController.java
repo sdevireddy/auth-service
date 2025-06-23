@@ -4,12 +4,14 @@ import com.zen.auth.dto.AuthRequest;
 import com.zen.auth.dto.AuthResponse;
 import com.zen.auth.dto.ApiResponse;
 import com.zen.auth.dto.ZenTenantDTO;
+import com.zen.auth.filters.TenantContextHolder;
 import com.zen.auth.filters.ZenUserDetails;
 import com.zen.auth.services.TenantService;
 import com.zen.auth.services.ZenUserDetailsService;
 import com.zen.auth.utility.JwtUtil;
 
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -51,9 +54,9 @@ public class TenantController {
             String tenantId = jwtUtil.extractTenantPrefix(dto.getEmail());
 
             // Generate tokens
-            String accessToken = jwtUtil.generateToken(dto.getEmail(), tenantId);
+            String accessToken = jwtUtil.generateToken(dto.getEmail(), TenantContextHolder.getTenantId());
             String refreshToken = jwtUtil.generateRefreshToken(
-            		dto.getEmail(), tenantId
+            		dto.getEmail(), TenantContextHolder.getTenantId()
             );
 
             AuthResponse authResponse = new AuthResponse();
@@ -61,6 +64,7 @@ public class TenantController {
             authResponse.setRefresh_token(refreshToken);
             authResponse.setOrgName(dto.getOrgName());
             authResponse.setUsername(dto.getEmail());
+            authResponse.setTenantId(TenantContextHolder.getTenantId());
 
             ApiResponse<AuthResponse> apiResponse = new ApiResponse<>(
                     true,
@@ -84,44 +88,44 @@ public class TenantController {
     }
     
     @PostMapping("/validate")
-    public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String authHeader) {
-    	System.out.println("Calling validate method");
-        try {
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new ApiResponse<>(false, "Missing or invalid Authorization header", null));
-            }
+    public ResponseEntity<ApiResponse<Map<String, String>>> validateToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        String TenantId = request.getHeader("Authorization");
 
-            String token = authHeader.replace("Bearer ", "");
-
-            if (!jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new ApiResponse<>(false, "Invalid or expired token", null));
-            }
-
-            String username = jwtUtil.extractUsername(token);
-            String tenantId = jwtUtil.extractTenant(token);
-           // List<String> roles = jwtUtil.extractRoles(token);
-
-            Map<String, Object> claims = new HashMap<>();
-            claims.put("userId", username);
-            claims.put("tenantId", tenantId);
-          //  claims.put("roles", roles);
-
-            return ResponseEntity.ok(claims);
-
-        } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new ApiResponse<>(false, "Token validation failed", null));
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body(new ApiResponse<>(false, "Missing or invalid token", null));
         }
-    }
 
+        String jwt = authHeader.substring(7);
+        if (!jwtUtil.validateToken(jwt)) {
+            ApiResponse<Map<String, String>> response = new ApiResponse<>(false, "Invalid token", null);
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(response);
+        }
+
+        String email = jwtUtil.extractUsername(jwt);
+        String tenantId = jwtUtil.extractTenant(jwt);
+        TenantContextHolder.setTenantId(tenantId);
+
+        return ResponseEntity.ok(
+        	    new ApiResponse<>(
+        	        true,
+        	        "Token is valid",
+        	        Map.of(
+        	            "email", email,
+        	            "tenantId", tenantId
+        	        )
+        	    )
+        	);
+    }
 
     /**
      * Login using tenant-specific user
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody AuthRequest request, HttpServletResponse response) {
+    public ResponseEntity<ApiResponse<Map<String, String>>>  login(@RequestBody AuthRequest request, HttpServletResponse response) {
         String email = request.getEmail();
         String username = request.getUsername();
         String password = request.getPassword();
@@ -143,8 +147,9 @@ public class TenantController {
             }
 
             String tenantId = jwtUtil.extractTenantPrefix(email);
-            String accessToken = jwtUtil.generateToken(username, tenantId);
-            String refreshToken = jwtUtil.generateRefreshToken(username, tenantId);
+            String accessToken = jwtUtil.generateToken(email, TenantContextHolder.getTenantId());
+            String ten = TenantContextHolder.getTenantId();
+            String refreshToken = jwtUtil.generateRefreshToken(email, ten);
 
             Cookie refreshCookie = new Cookie("refresh_token", refreshToken);
             refreshCookie.setHttpOnly(true);
@@ -161,8 +166,17 @@ public class TenantController {
             authResponse.setRoles(userDetails.getRoleNames());
             authResponse.setModules(userDetails.getModules());
 
-            return ResponseEntity.ok(new ApiResponse<>(true, "Login successful", authResponse));
-
+            return ResponseEntity.ok(
+            	    new ApiResponse<>(
+            	        true,
+            	        "User Login Successfull",
+            	        Map.of(
+            	            "access_token", accessToken,
+            	            "refresh_token",refreshToken,
+            	            "tenantId", TenantContextHolder.getTenantId()
+            	        )
+            	    )
+            	);
         } catch (UsernameNotFoundException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     new ApiResponse<>(false, "User not found", null)

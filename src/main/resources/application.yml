@@ -87,12 +87,10 @@ resilience4j:
 
 logging:
   level:
-    org.springframework.security: DEBUG
-    org.springframework.security.web.FilterChainProxy: DEBUG
+    com.zen.auth: DEBUG
+    org.springframework.web.reactive.function.client.ExchangeFunctions: DEBUG
     org.springframework.cloud.loadbalancer: DEBUG
-    org.springframework.cloud.gateway: DEBUG
     org.springframework.cloud.gateway.route.RouteDefinitionLocator: DEBUG
-    com.netflix.discovery: DEBUG
     org.springframework.cloud.netflix.eureka: DEBUG
   file:
     name: logs/authservice-debug.log
