@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.zen.auth.common.entity.Tenant;
 import com.zen.auth.common.entity.ZenUser;
 import com.zen.auth.entitymanagers.DynamicTenantManager;
+import com.zen.auth.filters.TenantContextHolder;
 import com.zen.auth.filters.ZenUserDetails;
 import com.zen.auth.repository.TenantRepository;
 import com.zen.auth.utility.CommonUtility;
@@ -43,11 +44,14 @@ public class ZenUserDetailsService implements UserDetailsService {
         String ema = CommonUtility.extractTenantsSuffix(tenantId);
         System.out.println("Organization id " + tenantId);
         Optional<Tenant> tenant = tenenatRepository.getByOrgName(ema);
+        TenantContextHolder.setTenantId(ema + "_"+ tenant.get().getSuffix());
+        String fullTenantName = ema + "_"+ tenant.get().getSuffix();
         if (tenant.isPresent()) {
-         em = tenantManager.getEntityManagerForTenant(ema + "_"+ tenant.get().getSuffix());
-        } else {
-        	 em = tenantManager.getEntityManagerForTenant(tenantId + "_"+ usernameOrEmail);
-        }
+         em = tenantManager.getEntityManagerForTenant(fullTenantName);
+		} /*
+			 * else { em = tenantManager.getEntityManagerForTenant(tenantId + "_"+
+			 * usernameOrEmail); }
+			 */
         try {
             ZenUser user;
             try {

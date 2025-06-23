@@ -1,33 +1,22 @@
 package com.zen.auth.filters;
 
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.filter.OncePerRequestFilter;
-
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zen.auth.dto.ApiResponse;
 import com.zen.auth.services.ZenUserDetailsService;
 import com.zen.auth.utility.JwtUtil;
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -41,106 +30,57 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
-                                    FilterChain filterChain)
-            throws ServletException, IOException {
-    	
-    	try {
-    		final String authorizationHeader = request.getHeader("Authorization");
+                                    FilterChain filterChain) throws ServletException, IOException {
 
-            String jwt = null;
-            String email = null;
-            String tenantId = null;
-           // TenantContextHolder.setTenantId(request.getTenantId());
-            
-            String requestPath = request.getRequestURI();
-            
-            
-            
-            if (requestPath.equals("/auth/login") || requestPath.equals("/auth/createAccount")) {
-            	 CachedBodyHttpServletRequest wrappedRequest = new CachedBodyHttpServletRequest(request);
-            	    
-            	    // Read JSON body
-            	    String body = new String(wrappedRequest.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            	    ObjectMapper mapper = new ObjectMapper();
-            	    JsonNode jsonNode = mapper.readTree(body);
-            	    
-            	    
-            	    //JsonNode tenantNode = jsonNode.get("orgId");
-            	    JsonNode emailNode = jsonNode.get("email");
+        String path = request.getRequestURI();
 
-            	    if (emailNode == null || emailNode.isNull()) {
-            	        writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, "Missing email in request");
-            	        return;
-            	    }
-            	    
-            	    String orgName = jwtUtil.extractTenantPrefix(emailNode.asText());
-            	    
-            	    // String StenantId = jsonNode.get("orgId").asText(); // ✅ Extract tenantId
-            	   // TenantContextHolder.setTenantId(Long.valueOf(StenantId)); // ✅ Set tenant for this request
-            	    TenantContextHolder.setTenantId(orgName);
+        // ⛔ Skip these endpoints from JWT validation
+        if (path.equals("/auth/login") || path.equals("/auth/createAccount") || path.equals("/auth/validate")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-            	    filterChain.doFilter(wrappedRequest, response); // Continue with wrapped request
-            	    return;
-            }
+        final String authHeader = request.getHeader("Authorization");
 
-            if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-                jwt = authorizationHeader.substring(7);
-                try {
-                    email = jwtUtil.extractUsername(jwt); // Extracts subject from JWT
-                    tenantId = jwtUtil.extractTenant(jwt);   // Custom claim "tenant"
-                } catch (Exception e) {
-                	e.printStackTrace();
-                	    writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");
-                	    return;
-                }
-            }
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Missing or invalid Authorization header");
+            return;
+        }
+
+        String jwt = authHeader.substring(7);
+
+        try {
+            String email = jwtUtil.extractUsername(jwt);
+            String tenantId = jwtUtil.extractTenant(jwt);
 
             if (email != null && tenantId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // Combine tenant and username to pass into UserDetailsService
                 String compoundUsername = tenantId + "|" + email;
-                System.out.println("compoundUsername******" + compoundUsername);
-                ZenUserDetails userDetails = (ZenUserDetails) userDetailsService.loadUserByUsername(compoundUsername);
+                var userDetails = userDetailsService.loadUserByUsername(compoundUsername);
 
                 if (jwtUtil.validateToken(jwt, userDetails.getUsername())) {
-
-                    // First login protection
-                    if (userDetails.isFirstLogin() && !request.getRequestURI().contains("/reset-password")) {
-                    	  writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "First-time login: password reset required");
-                        return;
-                    }
-
-                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    var authToken = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
-                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                } else {
+                    writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");
+                    return;
                 }
             }
-    	}catch(Exception aEx) {
-    		aEx.printStackTrace();
-    	}
+
+        } catch (Exception ex) {
+            writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "JWT validation failed: " + ex.getMessage());
+            return;
+        }
+
         filterChain.doFilter(request, response);
     }
-    
-    public String extractTenantFromEmail(String email) {
-        if (email == null || !email.contains("@")) {
-            throw new IllegalArgumentException("Invalid email format");
-        }
-        return email.substring(email.indexOf("@") + 1); // returns "org.com"
-    }
-    
-    
+
     private void writeErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
+        ApiResponse<String> error = new ApiResponse<>(false, message, null);
         response.setStatus(status);
-        response.setContentType("application/json");
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-
-        ApiResponse<String> errorResponse = new ApiResponse<>(false, message, null);
-        ObjectMapper mapper = new ObjectMapper();
-        String json = mapper.writeValueAsString(errorResponse);
-
-        response.getWriter().write(json);
+        new ObjectMapper().writeValue(response.getWriter(), error);
     }
-    
-  
-
 }

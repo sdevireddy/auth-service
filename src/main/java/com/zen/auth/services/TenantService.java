@@ -56,6 +56,9 @@ public class TenantService {
 		System.out.println("Padded 7-digit: " + padded);
 
 		String tenantName = TenantContextHolder.getTenantId();
+		if (tenantName == null) {
+			tenantName = CommonUtility.extractTenantsSuffix(userName);
+		}
 		Tenant tenant = new Tenant();
 		tenant.setOrgName(tenantName.trim());
 		tenant.setSuffix(padded);
@@ -63,6 +66,7 @@ public class TenantService {
 		tenant.setAdminUsername(dto.getUserName()); // or separate username field
 		tenant.setCreatedAt(LocalDateTime.now());
 		tenant.setUpdatedAt(LocalDateTime.now());
+		TenantContextHolder.setTenantId(tenantName +"_"+padded);
 
 		tenantRepository.save(tenant);
 
