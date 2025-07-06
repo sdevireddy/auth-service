@@ -8,72 +8,63 @@ import jakarta.validation.constraints.Size;
 public class ZenTenantDTO {
 
     private Long orgId;
-    
-    private String userName;
 
     @NotBlank(message = "Organization name is required")
-    @Size(max = 60, message = "Organization name must not exceed 255 characters")
+    @Size(max = 60, message = "Organization name must not exceed 60 characters")
     @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Organization name can only contain letters, numbers, and underscores")
     private String orgName;
 
-    @NotBlank(message = "Email is required")
+    @NotBlank(message = "Username (email) is required")
     @Email(message = "Invalid email format")
-    private String email;
+    private String userName;
 
+    @NotBlank(message = "Admin name is required")
+    @Size(max = 100, message = "Admin name must not exceed 100 characters")
     private String adminName;
 
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, message = "Password must be at least 8 characters long")
     private String password;
-    
 
-	public Long getOrgId() {
-		return orgId;
-	}
+    // --- Getters and Setters ---
 
-	public void setOrgId(Long orgId) {
-		this.orgId = orgId;
-	}
+    public Long getOrgId() {
+        return orgId;
+    }
 
-	public String getOrgName() {
-		return orgName;
-	}
+    public void setOrgId(Long orgId) {
+        this.orgId = orgId;
+    }
 
-	public void setOrgName(String orgName) {
-		this.orgName = orgName;
-	}
+    public String getOrgName() {
+        return orgName;
+    }
 
-	public String getEmail() {
-		return email;
-	}
+    public void setOrgName(String orgName) {
+        this.orgName = orgName;
+    }
 
-	public void setEmail(String email) {
-		this.email = email;
-	}
+    public String getUserName() {
+        return userName;
+    }
 
-	public String getAdminName() {
-		return adminName;
-	}
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
 
-	public void setAdminName(String adminName) {
-		this.adminName = adminName;
-	}
+    public String getAdminName() {
+        return adminName;
+    }
 
-	public String getPassword() {
-		return password;
-	}
+    public void setAdminName(String adminName) {
+        this.adminName = adminName;
+    }
 
-	public void setPassword(String password) {
-		this.password = password;
-	}
+    public String getPassword() {
+        return password;
+    }
 
-
-	public String getUserName() {
-		return userName;
-	}
-
-	public void setUserName(String userName) {
-		this.userName = userName;
-	}
-
- 
-
+    public void setPassword(String password) {
+        this.password = password;
+    }
 }
