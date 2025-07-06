@@ -51,19 +51,19 @@ public class TenantController {
             // Create schema and admin user
             tenantService.createTenant(dto);
 
-            String tenantId = jwtUtil.extractTenantPrefix(dto.getEmail());
+            String tenantId = jwtUtil.extractTenantPrefix(dto.getUserName());
 
             // Generate tokens
-            String accessToken = jwtUtil.generateToken(dto.getEmail(), TenantContextHolder.getTenantId());
+            String accessToken = jwtUtil.generateToken(dto.getUserName(), TenantContextHolder.getTenantId());
             String refreshToken = jwtUtil.generateRefreshToken(
-            		dto.getEmail(), TenantContextHolder.getTenantId()
+            		dto.getUserName(), TenantContextHolder.getTenantId()
             );
 
             AuthResponse authResponse = new AuthResponse();
             authResponse.setAccess_token(accessToken);
             authResponse.setRefresh_token(refreshToken);
             authResponse.setOrgName(dto.getOrgName());
-            authResponse.setUsername(dto.getEmail());
+            authResponse.setUsername(dto.getUserName());
             authResponse.setTenantId(TenantContextHolder.getTenantId());
 
             ApiResponse<AuthResponse> apiResponse = new ApiResponse<>(

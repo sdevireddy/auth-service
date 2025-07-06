@@ -5,9 +5,9 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
-    url: jdbc:mysql://localhost:3306/tenant
+    url: jdbc:mysql://shortline.proxy.rlwy.net:25041/railway
     username: root
-    password: password
+    password: RPJQFaNphMviBYbeJXBfcXgDUQYBYPp
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 8
@@ -48,9 +48,9 @@ eureka:
 
 tenant:
   datasource:
-    url-prefix: jdbc:mysql://localhost:3306/
+    url-prefix: jdbc:mysql://shortline.proxy.rlwy.net:25041/railway
     username: root
-    password: password
+    password: RPJQFaNphMviBYbeJXBfcXgDUQYBYPp
 
 jwt:
   secret: G9MzZjTz2Mm89rL1RL9Jb9vP0rf4pKukwH3XzOvQduE=

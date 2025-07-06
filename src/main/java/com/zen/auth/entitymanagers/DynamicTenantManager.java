@@ -1,19 +1,15 @@
 package com.zen.auth.entitymanagers;
 
+import com.zen.auth.properties.TenantDatasourceProperties;
+import com.zen.auth.common.entity.ZenUser;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
-
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.stereotype.Component;
-
-import com.zen.auth.common.entity.ZenUser;
-
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 
 import javax.sql.DataSource;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,48 +17,39 @@ import java.util.Map;
 public class DynamicTenantManager {
 
     private final EntityManagerFactoryBuilder builder;
+    private final TenantDatasourceProperties tenantDatasourceProperties;
 
-    @Value("${tenant.datasource.url-prefix}")
-    private String urlPrefix;
-
-    @Value("${tenant.datasource.username}")
-    private String username;
-
-    @Value("${tenant.datasource.password}")
-    private String password;
-
-    public DynamicTenantManager(EntityManagerFactoryBuilder builder) {
+    public DynamicTenantManager(EntityManagerFactoryBuilder builder, TenantDatasourceProperties tenantDatasourceProperties) {
         this.builder = builder;
+        this.tenantDatasourceProperties = tenantDatasourceProperties;
     }
 
     public EntityManager getEntityManagerForTenant(String tenantId) {
-        String url = urlPrefix + tenantId;
-        System.out.println("url" + url);
+        String url = tenantDatasourceProperties.getUrlPrefix() + tenantId;
+        System.out.println("Using Tenant DB URL: " + url);
 
         DataSource dataSource = DataSourceBuilder.create()
             .url(url)
-            .username(username)
-            .password(password)
+            .username(tenantDatasourceProperties.getUsername())
+            .password(tenantDatasourceProperties.getPassword())
             .driverClassName("com.mysql.cj.jdbc.Driver")
             .build();
 
         Map<String, Object> props = new HashMap<>();
-        props.put("hibernate.hbm2ddl.auto", "none"); // Or validate/update
+        props.put("hibernate.hbm2ddl.auto", "none"); 
         props.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
 
         LocalContainerEntityManagerFactoryBean emfBean = builder
             .dataSource(dataSource)
-            .packages("com.zen.auth.common.entity")
-            .packages(ZenUser.class)
-            .persistenceUnit(tenantId+"")
+            .packages("com.zen.auth.common.entity", ZenUser.class.getPackage().getName())
+            .persistenceUnit(tenantId)
             .properties(props)
             .build();
 
         emfBean.afterPropertiesSet();
         EntityManagerFactory emf = emfBean.getObject();
         System.out.println("Managed entities: " + emf.getMetamodel().getEntities());
+        
         return emf.createEntityManager();
-        //return emfBean.getObject().createEntityManager();
     }
 }
-

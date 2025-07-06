@@ -44,7 +44,7 @@ public class TenantService {
 	@Transactional
 	public void createTenant(ZenTenantDTO dto) {
 
-		String userName = dto.getEmail().trim().toLowerCase();
+		String userName = dto.getUserName().trim().toLowerCase();
 
 		// 1. Check if email is already registered
 		if (tenantRepository.findByEmail(userName).isPresent()) {
@@ -63,7 +63,7 @@ public class TenantService {
 		tenant.setOrgName(tenantName.trim());
 		tenant.setSuffix(padded);
 		tenant.setEmail(userName);
-		tenant.setAdminUsername(dto.getUserName()); // or separate username field
+		tenant.setAdminUsername(dto.getAdminName()); // or separate username field
 		tenant.setCreatedAt(LocalDateTime.now());
 		tenant.setUpdatedAt(LocalDateTime.now());
 		TenantContextHolder.setTenantId(tenantName +"_"+padded);
