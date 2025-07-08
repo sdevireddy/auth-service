@@ -1,13 +1,11 @@
 spring:
   application:
     name: auth-service
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
-    url: jdbc:mysql://shortline.proxy.rlwy.net:25041/railway
+    url: jdbc:mysql://centerbeam.proxy.rlwy.net:56024/railway
     username: root
-    password: RPJQFaNphMviBYbeJXBfcXgDUQYBYPp
+    password: uTdHtgdIQitzGtGYcIAUrAjDDreTqqDU
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 8
@@ -38,19 +36,20 @@ spring:
 
 server:
   port: 8082
+  address: 0.0.0.0
 
 eureka:
   client:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: http://ec2-13-49-44-42.eu-north-1.compute.amazonaws.com:8767/eureka
+      defaultZone: http://ec2-16-171-41-109.eu-north-1.compute.amazonaws.com:8767/eureka
 
 tenant:
   datasource:
-    url-prefix: jdbc:mysql://shortline.proxy.rlwy.net:25041/railway
+    url-prefix: jdbc:mysql://centerbeam.proxy.rlwy.net:56024/railway
     username: root
-    password: RPJQFaNphMviBYbeJXBfcXgDUQYBYPp
+    password: uTdHtgdIQitzGtGYcIAUrAjDDreTqqDU
 
 jwt:
   secret: G9MzZjTz2Mm89rL1RL9Jb9vP0rf4pKukwH3XzOvQduE=
@@ -97,11 +96,11 @@ resilience4j:
 
 logging:
   level:
-    com.zen.auth: DEBUG
-    org.springframework.web.reactive.function.client.ExchangeFunctions: DEBUG
-    org.springframework.cloud.loadbalancer: DEBUG
-    org.springframework.cloud.gateway.route.RouteDefinitionLocator: DEBUG
-    org.springframework.cloud.netflix.eureka: DEBUG
+    com.zen.auth: INFO
+    org.springframework.web.reactive.function.client.ExchangeFunctions: INFO
+    org.springframework.cloud.loadbalancer: INFO
+    org.springframework.cloud.gateway.route.RouteDefinitionLocator: INFO
+    org.springframework.cloud.netflix.eureka: INFO
   file:
     name: logs/authservice-debug.log
   pattern:

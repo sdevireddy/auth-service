@@ -8,6 +8,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,6 +23,8 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+
     @Autowired
     private JwtUtil jwtUtil;
 
@@ -33,9 +37,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
 
         String path = request.getRequestURI();
+        String requestId = request.getHeader("X-Request-ID");
 
-        // ⛔ Skip these endpoints from JWT validation
+        log.info("📨 Incoming request | path: {} | X-Request-ID: {}", path, requestId);
+
+        // ⛔ Skip JWT validation for public endpoints
         if (path.equals("/auth/login") || path.equals("/auth/createAccount") || path.equals("/auth/validate")) {
+            log.info("🔓 Skipping JWT check for public endpoint: {}", path);
             filterChain.doFilter(request, response);
             return;
         }
@@ -43,6 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.warn("⛔ Missing or invalid Authorization header | X-Request-ID: {}", requestId);
             writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Missing or invalid Authorization header");
             return;
         }
@@ -62,13 +71,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userDetails, null, userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                    log.info("✅ Authenticated user: {} | tenant: {} | X-Request-ID: {}", email, tenantId, requestId);
                 } else {
+                    log.warn("❌ Invalid JWT token | X-Request-ID: {}", requestId);
                     writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");
                     return;
                 }
             }
 
         } catch (Exception ex) {
+            log.error("❌ JWT validation failed | X-Request-ID: {} | Reason: {}", requestId, ex.getMessage());
             writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "JWT validation failed: " + ex.getMessage());
             return;
         }
