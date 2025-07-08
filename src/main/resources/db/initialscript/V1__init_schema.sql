@@ -187,3 +187,19 @@ CREATE TABLE `users` (
   UNIQUE KEY `UKr43af9ap4edm43mmtq01oddj6` (`username`),
   UNIQUE KEY `UK6dotkott2kjsp8vw4d0m25fb7` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+
+CREATE TABLE `tenants` (
+  `created_at` datetime(6) NOT NULL,
+  `tenantId` bigint NOT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `admin_username` varchar(255) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `orgName` varchar(255) NOT NULL,
+  `suffix` varchar(255) DEFAULT NULL,
+  `tenantOrgName` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`tenantId`),
+  UNIQUE KEY `UKqvqlfhr02qeirhd79pfh8glpj` (`admin_username`),
+  UNIQUE KEY `UK2d74g7acpo0pgsm3fbqlxiwjt` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
