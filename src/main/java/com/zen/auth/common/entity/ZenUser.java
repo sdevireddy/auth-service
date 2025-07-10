@@ -312,5 +312,10 @@ public class ZenUser {
 			this.firstLogin = firstLogin;
 		}
 
+		public ZenUser() {
+			super();
+			// TODO Auto-generated constructor stub
+		}
+
 
 }

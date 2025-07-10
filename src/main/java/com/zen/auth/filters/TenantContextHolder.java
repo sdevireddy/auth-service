@@ -15,5 +15,12 @@ public class TenantContextHolder {
     public static void clear() {
         contextHolder.remove();
     }
+
+	public TenantContextHolder() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
 }
 

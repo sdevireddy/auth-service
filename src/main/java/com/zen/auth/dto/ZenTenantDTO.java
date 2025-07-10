@@ -67,4 +67,11 @@ public class ZenTenantDTO {
     public void setPassword(String password) {
         this.password = password;
     }
+
+	public ZenTenantDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
 }

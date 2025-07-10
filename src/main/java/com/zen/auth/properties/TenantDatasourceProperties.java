@@ -33,6 +33,6 @@ public class TenantDatasourceProperties {
 	public void setPassword(String password) {
 		this.password = password;
 	}
-    
+
 }
 

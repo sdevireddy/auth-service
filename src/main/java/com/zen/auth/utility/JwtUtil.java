@@ -93,4 +93,6 @@ public class JwtUtil {
         String domain = email.substring(email.indexOf("@") + 1);
         return domain.split("\\.")[0]; // e.g. zen from zen.com
     }
+    
+    
 }

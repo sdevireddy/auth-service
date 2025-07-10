@@ -10,9 +10,9 @@ spring:
     hikari:
       maximum-pool-size: 8
       minimum-idle: 2
-      idle-timeout: 300000 # 5 minutes
-      max-lifetime: 1800000 # 30 minutes
-      connection-timeout: 60000 # 30 seconds
+      idle-timeout: 300000       # 5 minutes
+      max-lifetime: 1800000      # 30 minutes
+      connection-timeout: 60000  # 30 seconds
       pool-name: MasterHikariPool
 
   jpa:
@@ -45,9 +45,14 @@ eureka:
     service-url:
       defaultZone: http://ec2-16-171-41-109.eu-north-1.compute.amazonaws.com:8767/eureka
 
+  instance:
+    hostname: ec2-16-170-230-190.eu-north-1.compute.amazonaws.com
+    prefer-ip-address: false
+    instance-id: ec2-16-170-230-190.eu-north-1.compute.amazonaws.com:auth-service:8082
+
 tenant:
   datasource:
-    url-prefix: jdbc:mysql://centerbeam.proxy.rlwy.net:56024/railway
+    url-prefix: jdbc:mysql://centerbeam.proxy.rlwy.net:56024
     username: root
     password: uTdHtgdIQitzGtGYcIAUrAjDDreTqqDU
 
