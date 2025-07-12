@@ -3,16 +3,16 @@ spring:
     name: auth-service
 
   datasource:
-    url: jdbc:mysql://localhost:3306/tenant
+    url: jdbc:mysql://centerbeam.proxy.rlwy.net:56024/railway
     username: root
-    password: password
+    password: uTdHtgdIQitzGtGYcIAUrAjDDreTqqDU
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 8
       minimum-idle: 2
-      idle-timeout: 300000 # 5 minutes
-      max-lifetime: 1800000 # 30 minutes
-      connection-timeout: 60000 # 30 seconds
+      idle-timeout: 300000       # 5 minutes
+      max-lifetime: 1800000      # 30 minutes
+      connection-timeout: 60000  # 30 seconds
       pool-name: MasterHikariPool
 
   jpa:
@@ -36,6 +36,7 @@ spring:
 
 server:
   port: 8082
+  address: 0.0.0.0
 
 eureka:
   client:
@@ -46,9 +47,9 @@ eureka:
 
 tenant:
   datasource:
-    url-prefix: jdbc:mysql://localhost:3306/
+    url-prefix: jdbc:mysql://centerbeam.proxy.rlwy.net:56024
     username: root
-    password: password
+    password: uTdHtgdIQitzGtGYcIAUrAjDDreTqqDU
 
 jwt:
   secret: G9MzZjTz2Mm89rL1RL9Jb9vP0rf4pKukwH3XzOvQduE=
@@ -95,11 +96,11 @@ resilience4j:
 
 logging:
   level:
-    com.zen.auth: DEBUG
-    org.springframework.web.reactive.function.client.ExchangeFunctions: DEBUG
-    org.springframework.cloud.loadbalancer: DEBUG
-    org.springframework.cloud.gateway.route.RouteDefinitionLocator: DEBUG
-    org.springframework.cloud.netflix.eureka: DEBUG
+    com.zen.auth: INFO
+    org.springframework.web.reactive.function.client.ExchangeFunctions: INFO
+    org.springframework.cloud.loadbalancer: INFO
+    org.springframework.cloud.gateway.route.RouteDefinitionLocator: INFO
+    org.springframework.cloud.netflix.eureka: INFO
   file:
     name: logs/authservice-debug.log
   pattern:

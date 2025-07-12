@@ -9,6 +9,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         log.info("📨 Incoming request | path: {} | X-Request-ID: {}", path, requestId);
 
-        // ⛔ Skip JWT validation for public endpoints
+        // 🔓 Skip JWT check for public endpoints
         if (path.equals("/auth/login") || path.equals("/auth/createAccount") || path.equals("/auth/validate")) {
             log.info("🔓 Skipping JWT check for public endpoint: {}", path);
             filterChain.doFilter(request, response);
@@ -57,19 +58,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String jwt = authHeader.substring(7);
+        final String jwt = authHeader.substring(7);
 
         try {
             String email = jwtUtil.extractUsername(jwt);
             String tenantId = jwtUtil.extractTenant(jwt);
 
-            if (email != null && tenantId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (email != null && tenantId != null &&
+                    SecurityContextHolder.getContext().getAuthentication() == null) {
+
                 String compoundUsername = tenantId + "|" + email;
                 var userDetails = userDetailsService.loadUserByUsername(compoundUsername);
 
                 if (jwtUtil.validateToken(jwt, userDetails.getUsername())) {
                     var authToken = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
+
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
 
@@ -91,6 +95,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void writeErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
+        if (response.isCommitted()) {
+            log.warn("⚠️ Response already committed — cannot write error: {}", message);
+            return;
+        }
+
         ApiResponse<String> error = new ApiResponse<>(false, message, null);
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
