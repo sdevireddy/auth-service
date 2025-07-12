@@ -18,7 +18,7 @@ public class Tenant {
     @Column(name = "tenantOrgName", nullable = true)
     private String tenantOrgName;
 
-    @Column(name = "admin_username", nullable = false, unique = true)
+    @Column(name = "admin_username", nullable = false)
     private String adminUsername; // login username for admin (can be email or unique string)
 
     @Column(name = "email", nullable = false, unique = true)
