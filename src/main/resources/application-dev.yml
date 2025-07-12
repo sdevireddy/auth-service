@@ -96,11 +96,11 @@ resilience4j:
 
 logging:
   level:
-    com.zen.auth: INFO
-    org.springframework.web.reactive.function.client.ExchangeFunctions: INFO
-    org.springframework.cloud.loadbalancer: INFO
-    org.springframework.cloud.gateway.route.RouteDefinitionLocator: INFO
-    org.springframework.cloud.netflix.eureka: INFO
+    com.zen.auth: DEBUG
+    org.springframework.web.reactive.function.client.ExchangeFunctions: DEBUG
+    org.springframework.cloud.loadbalancer: DEBUG
+    org.springframework.cloud.gateway.route.RouteDefinitionLocator: DEBUG
+    org.springframework.cloud.netflix.eureka: DEBUG
   file:
     name: logs/authservice-debug.log
   pattern:
