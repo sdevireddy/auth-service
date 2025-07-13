@@ -1,109 +1,101 @@
 package com.zen.auth.services;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-
-import org.springframework.transaction.annotation.Transactional;
-
 import com.zen.auth.common.entity.Tenant;
-//import com.zen.auth.common.entity.ZenTenant;
 import com.zen.auth.config.DataSourceManager;
 import com.zen.auth.dto.ZenTenantDTO;
 import com.zen.auth.filters.TenantContextHolder;
-//import com.zen.auth.repository.TenantRepository;
 import com.zen.auth.repository.TenantRepository;
 import com.zen.auth.utility.CommonUtility;
-
-import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
-//TenantService.java
 @Service
 @Lazy
 public class TenantService {
 
-	@Autowired
-	private DataSourceManager dataSourceManager;
-	@Autowired
-	private FlywayMigrationService flywayMigrationService;
-	@Autowired
-	private TenantUserService tenantUserService = null;
-	@Autowired
-	private TenantRepository tenantRepository;
+    @Autowired
+    private DataSourceManager dataSourceManager;
 
-	private static final Random RANDOM = new Random();
-	private static Long TENENAT_START_AT = 2006L;
+    @Autowired
+    private FlywayMigrationService flywayMigrationService;
 
-	@Transactional
-	public void createTenant(ZenTenantDTO dto) {
+    @Autowired
+    private TenantUserService tenantUserService;
 
-		String userName = dto.getUserName().trim().toLowerCase();
+    @Autowired
+    private TenantRepository tenantRepository;
 
-		// 1. Check if email is already registered
-		if (tenantRepository.findByEmail(userName).isPresent()) {
-			throw new IllegalArgumentException("Admin email is already registered with another tenant.");
-		}
+    private static final Random RANDOM = new Random();
 
-		// 2. Save tenant info (optional before schema creation, depending on design)
-		String padded = String.format("%07d", new Random().nextInt(10_000_000));
-		System.out.println("Padded 7-digit: " + padded);
+    @Transactional
+    public void createTenant(ZenTenantDTO dto) {
+        String userName = dto.getUserName().trim().toLowerCase();
 
-		String tenantName = TenantContextHolder.getTenantId();
-		if (tenantName == null) {
-			tenantName = CommonUtility.extractTenantsSuffix(userName);
-		}
-		Tenant tenant = new Tenant();
-		tenant.setOrgName(tenantName.trim());
-		tenant.setSuffix(padded);
-		tenant.setEmail(userName);
-		tenant.setAdminUsername(dto.getAdminName()); // or separate username field
-		tenant.setCreatedAt(LocalDateTime.now());
-		tenant.setUpdatedAt(LocalDateTime.now());
-		TenantContextHolder.setTenantId(tenantName +"_"+padded);
+        // 1️⃣ Check email already exists
+        if (tenantRepository.findByEmail(userName).isPresent()) {
+            throw new IllegalArgumentException("Admin email is already registered with another tenant.");
+        }
 
-		tenantRepository.save(tenant);
+        // 2️⃣ Generate padded 7-digit suffix
+        String paddedSuffix = String.format("%07d", RANDOM.nextInt(10_000_000));
+        System.out.println("📛 Padded 7-digit: " + paddedSuffix);
 
-		dto.setOrgId(tenant.getTenantId());
+        // 3️⃣ Determine base tenant name
+        String tenantBaseName = TenantContextHolder.getTenantId();
+        if (tenantBaseName == null) {
+            tenantBaseName = CommonUtility.extractTenantsSuffix(userName);
+        }
 
-		System.out.println("tenant saved correctly");
+        String fullTenantId = tenantBaseName + "_" + paddedSuffix;
+        TenantContextHolder.setTenantId(fullTenantId);
 
-		// 3. Create schema
+        // 4️⃣ Save tenant info
+        Tenant tenant = new Tenant();
+        tenant.setOrgName(tenantBaseName);
+        tenant.setSuffix(paddedSuffix);
+        tenant.setEmail(userName);
+        tenant.setAdminUsername(dto.getAdminName());
+        tenant.setCreatedAt(LocalDateTime.now());
+        tenant.setUpdatedAt(LocalDateTime.now());
 
-		try {
+        tenantRepository.save(tenant);
+        dto.setOrgId(tenant.getTenantId());
 
-			dataSourceManager.createSchema(tenantName, padded);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to create tenant schema", e);
-		}
+        System.out.println("✅ Tenant saved correctly: " + fullTenantId);
 
-		// 4. Run Flyway migrations
-		try {
-			flywayMigrationService.runMigrations(tenantName + "_" + padded);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to run migrations for tenant schema", e);
-		}
+        // 5️⃣ Create schema
+        try {
+            dataSourceManager.createSchema(tenantBaseName, paddedSuffix);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create tenant schema", e);
+        }
 
-		// 5. Create admin user in tenant schema
-		try {
-			tenantUserService.createUserInTenant(tenantName + "_" + padded, tenant, dto.getPassword());
-		} catch (Exception ex) {
-			// Optional: rollback tenant entry from master if needed
-			ex.printStackTrace();
-			tenantRepository.deleteByEmail(userName);
-			throw new RuntimeException("Failed to create admin user, rolling back tenant", ex);
-		}
-	}
+        // 6️⃣ Run Flyway migrations
+        try {
+            flywayMigrationService.runMigrations(fullTenantId);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to run migrations for tenant schema", e);
+        }
 
-	public String getTenantSuffix(String orgName) {
-		String name = CommonUtility.extractTenantsSuffix(orgName);
-		Optional<Tenant> tenant = tenantRepository.getByOrgName(name);
-		return tenant.get().getOrgName() + "_" + tenant.get().getSuffix();
-	}
+        // 7️⃣ Create admin user in schema
+        try {
+            tenantUserService.createUserInTenant(fullTenantId, tenant, dto.getPassword());
+        } catch (Exception ex) {
+            tenantRepository.deleteByEmail(userName);
+            throw new RuntimeException("Failed to create admin user, rolling back tenant", ex);
+        }
+    }
+
+    public String getTenantSuffix(String orgName) {
+        String baseName = CommonUtility.extractTenantsSuffix(orgName);
+        Optional<Tenant> tenantOpt = tenantRepository.getByOrgName(baseName);
+        return tenantOpt.map(t -> t.getOrgName() + "_" + t.getSuffix())
+                        .orElseThrow(() -> new IllegalArgumentException("Tenant not found for: " + orgName));
+    }
 }
