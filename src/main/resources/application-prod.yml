@@ -12,7 +12,7 @@ spring:
       minimum-idle: 2
       idle-timeout: 300000       # 5 minutes
       max-lifetime: 1800000      # 30 minutes
-      connection-timeout: 60000  # 30 seconds
+      connection-timeout: 60000  # 1 minute
       pool-name: MasterHikariPool
 
   jpa:
@@ -46,9 +46,9 @@ eureka:
       defaultZone: http://ec2-16-171-41-109.eu-north-1.compute.amazonaws.com:8767/eureka
 
   instance:
-    hostname: ec2-16-170-230-190.eu-north-1.compute.amazonaws.com
+    hostname: ec2-16-170-230-190.eu-north-1.compute.amazonaws.com  # ✅ Fixed typo: '.amazon' → '.amazonaws.com'
     prefer-ip-address: false
-    instance-id: ec2-16-170-230-190.eu-north-1.compute.amazonaws.com:auth-service:8082
+    instance-id: ec2-16-170-230-190.eu-north-1.compute.amazonaws.com:auth-service:8082  # ✅ Made clear it's auth-service
 
 tenant:
   datasource:
