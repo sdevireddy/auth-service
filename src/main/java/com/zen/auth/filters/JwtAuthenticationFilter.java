@@ -4,12 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zen.auth.dto.ApiResponse;
 import com.zen.auth.services.ZenUserDetailsService;
 import com.zen.auth.utility.JwtUtil;
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +17,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
 
 @Component
@@ -43,7 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         log.info("📨 Incoming request | path: {} | X-Request-ID: {}", path, requestId);
 
-        // 🔓 Skip JWT check for public endpoints
+        // Skip JWT for public endpoints
         if (path.equals("/auth/login") || path.equals("/auth/createAccount") || path.equals("/auth/validate")) {
             log.info("🔓 Skipping JWT check for public endpoint: {}", path);
             filterChain.doFilter(request, response);
@@ -63,6 +60,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String email = jwtUtil.extractUsername(jwt);
             String tenantId = jwtUtil.extractTenant(jwt);
+
+            if (tenantId != null) {
+                // ✅ Important: Set tenant context here
+                TenantContextHolder.setTenantId(tenantId);
+            }
 
             if (email != null && tenantId != null &&
                     SecurityContextHolder.getContext().getAuthentication() == null) {
