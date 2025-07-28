@@ -1,11 +1,25 @@
 package com.zen.auth.common.entity;
 
-import jakarta.persistence.*;
-
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 
 
 @Entity
@@ -94,6 +108,74 @@ public class ZenUser {
 	    
 	    @Column(name = "firstlogin")
 	    private boolean firstLogin = true;
+	    
+	    @ManyToMany
+	    @JoinTable(
+	        name = "user_roles",
+	        joinColumns = @JoinColumn(name = "user_id"),
+	        inverseJoinColumns = @JoinColumn(name = "role_id")
+	    )
+	    private Set<Roles> roles;	
+
+	    @ManyToOne(fetch = FetchType.LAZY)
+	    @JoinColumn(name = "country_id")
+	    private Country country;
+
+	    @ManyToMany
+	    @JoinTable(
+	        name = "user_branches",
+	        joinColumns = @JoinColumn(name = "user_id"),
+	        inverseJoinColumns = @JoinColumn(name = "branch_id")
+	    )
+	    private Set<Branch> branches = new HashSet<>();
+
+	    @ManyToMany
+	    @JoinTable(
+	        name = "user_locations",
+	        joinColumns = @JoinColumn(name = "user_id"),
+	        inverseJoinColumns = @JoinColumn(name = "location_id")
+	    )
+	    private Set<Location> locations = new HashSet<>();
+	    
+	    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+	    private Set<UserRoleBranchLocation> userRoleBranchLocations = new HashSet<>();
+	    
+	    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	    private Set<RecordPermission> recordPermissions = new HashSet<>();
+
+	    public Set<RecordPermission> getRecordPermissions() {
+	        return recordPermissions;
+	    }
+
+	    public void setRecordPermissions(Set<RecordPermission> recordPermissions) {
+	        this.recordPermissions = recordPermissions;
+	    }
+
+	    // --- Getters & Setters ---
+
+	    public Country getCountry() {
+	        return country;
+	    }
+
+	    public void setCountry(Country country) {
+	        this.country = country;
+	    }
+
+	    public Set<Branch> getBranches() {
+	        return branches;
+	    }
+
+	    public void setBranches(Set<Branch> branches) {
+	        this.branches = branches;
+	    }
+
+	    public Set<Location> getLocations() {
+	        return locations;
+	    }
+
+	    public void setLocations(Set<Location> locations) {
+	        this.locations = locations;
+	    }
 
 
 		public Long getId() {
@@ -317,5 +399,22 @@ public class ZenUser {
 			// TODO Auto-generated constructor stub
 		}
 
+		public Set<Roles> getRoles() {
+			return roles;
+		}
+
+		public void setRoles(Set<Roles> roles) {
+			this.roles = roles;
+		}
+
+		public Set<UserRoleBranchLocation> getUserRoleBranchLocations() {
+			return userRoleBranchLocations;
+		}
+
+		public void setUserRoleBranchLocations(Set<UserRoleBranchLocation> userRoleBranchLocations) {
+			this.userRoleBranchLocations = userRoleBranchLocations;
+		}
+		
+		
 
 }

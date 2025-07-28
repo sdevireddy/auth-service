@@ -76,4 +76,8 @@ public class ZenUserDetails implements UserDetails {
 			// TODO Auto-generated method stub
 			return null;
 		}
+		
+		public Long getId() {
+			return user.getId();
+		}
 	}

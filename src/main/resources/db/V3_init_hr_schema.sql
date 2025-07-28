@@ -8,7 +8,12 @@ CREATE TABLE employees (
     date_of_birth DATE,
     gender VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
     nationality VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
-    marital_status VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+    marital_status VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utfCREATE TABLE features (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    module_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    FOREIGN KEY (module_id) REFERENCES modules(id)
+);8mb4_general_ci,
     blood_group VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
 
     -- Contact Details
@@ -116,4 +121,14 @@ CREATE TABLE employee_leave (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_leave_employee FOREIGN KEY (employee_id) REFERENCES employee(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE features (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    module_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    FOREIGN KEY (module_id) REFERENCES modules(id)
+);
+
+
 
