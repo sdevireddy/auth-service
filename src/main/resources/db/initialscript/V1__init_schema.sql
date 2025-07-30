@@ -21,6 +21,7 @@ CREATE TABLE roles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT,
+    module_id BIGINT,
     is_default BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -35,6 +36,14 @@ CREATE TABLE modules (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE
 );
+
+CREATE TABLE tenant_modules (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    modulekey VARCHAR(100) NOT NULL UNIQUE
+);
+
 
 CREATE TABLE features (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -418,17 +427,13 @@ CREATE TABLE IF NOT EXISTS role_module_permissions (
     FOREIGN KEY (feature_id) REFERENCES features(id),
     FOREIGN KEY (permission_id) REFERENCES permissions(id)
 );
-
-
-CREATE TABLE tenant_modules (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    tenant_id VARCHAR(100),         -- Your schema or orgName
-    module_id BIGINT NOT NULL,
-    FOREIGN KEY (module_id) REFERENCES modules(id)
-);
-
-
 ALTER TABLE users ADD COLUMN country_id BIGINT;
 ALTER TABLE users ADD CONSTRAINT fk_user_country FOREIGN KEY (country_id) REFERENCES countries(id);
+
+
+ALTER TABLE user_role_branch_location ADD COLUMN roles_id BIGINT;
+
+ALTER TABLE user_role_branch_location
+ADD CONSTRAINT fk_urbl_roles FOREIGN KEY (roles_id) REFERENCES roles(id);
 
 

@@ -1,5 +1,5 @@
 -- STEP 1: Copy Modules
-INSERT INTO modules (id, name, module_key, description)
+INSERT INTO tenant_modules (id, name, module_key, description)
 SELECT id, name, module_key, description
 FROM common.modules;
 

@@ -8,13 +8,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.repository.ListCrudRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -25,11 +22,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.zen.auth.common.entity.Feature;
 import com.zen.auth.common.entity.PermissionBundle;
 import com.zen.auth.common.entity.Permissions;
-import com.zen.auth.common.entity.RecordPermission;
-import com.zen.auth.common.entity.RoleFeaturePermission;
 import com.zen.auth.common.entity.Roles;
 import com.zen.auth.common.entity.ZenUser;
 import com.zen.auth.dto.ApiResponse;
@@ -43,6 +37,7 @@ import com.zen.auth.repository.FeatureRepository;
 import com.zen.auth.repository.ModuleRepository;
 import com.zen.auth.repository.PermissionRepository;
 import com.zen.auth.repository.UsersRepository;
+import com.zen.auth.services.RoleProvisioningService;
 import com.zen.auth.services.TenantService;
 import com.zen.auth.services.ZenUserDetailsService;
 import com.zen.auth.utility.JwtUtil;
@@ -83,6 +78,9 @@ public class TenantController {
 
     @Autowired
 	private PermissionRepository permissionRepository;
+    
+    @Autowired
+    private RoleProvisioningService roleProvisioningService;
 
 	/*
 	 * @PostMapping("/createAccount") public
@@ -218,128 +216,101 @@ public class TenantController {
 	 * @PostMapping("/validate")
 	 */
 	
-	   @PostMapping("/createAccount")
-	    public ResponseEntity<ApiResponse<AuthResponse>> createTenant(@RequestBody ZenTenantDTO dto) {
-	        logger.info("🎯 Creating tenant for org: {}", dto.getOrgName());
+    @PostMapping("/createAccount")
+    public ResponseEntity<ApiResponse<AuthResponse>> createTenant(@RequestBody ZenTenantDTO dto) {
+        logger.info("\uD83C\uDFC3 Creating tenant for org: {}", dto.getOrgName());
 
-	        try {
-	            tenantService.createTenant(dto);
-	            String tenantId = TenantContextHolder.getTenantId();
+        try {
+            tenantService.createTenant(dto);
+            String tenantId = TenantContextHolder.getTenantId();
+            EntityManager em = tenantManager.getEntityManagerForTenant(tenantId);
 
-	            EntityManager em = tenantManager.getEntityManagerForTenant(tenantId);
-	            ZenUser adminUser = em.createQuery("SELECT u FROM ZenUser u WHERE u.email = :username", ZenUser.class)
-	                                   .setParameter("username", dto.getUserName())
-	                                   .getSingleResult();
+            ZenUser adminUser = em.createQuery("SELECT u FROM ZenUser u WHERE u.email = :username", ZenUser.class)
+                    .setParameter("username", dto.getUserName())
+                    .getSingleResult();
 
-	            // Assign default roles + features for each selected module
-	            for (String moduleKey : dto.getModules()) {
-	                com.zen.auth.common.entity.Module globalModule = moduleRepository.findByName(moduleKey)
-	                    .orElseThrow(() -> new IllegalArgumentException("Invalid module: " + moduleKey));
+            for (String moduleKey : dto.getModules()) {
+            		String roleName = moduleKey.toUpperCase() + "_Admin"; // e.g., "crm" → "CRM_Admin"
+            		Set<String> assignRoleNames = Set.of(roleName);
+            		roleProvisioningService.createTenantRoles(tenantId, moduleKey, adminUser, assignRoleNames);
+            }
 
-	                Roles role = new Roles();
-	                role.setName(moduleKey + "_admin");
+            em.merge(adminUser);
 
-	               // List<Feature> features = featureRepository.findByModuleName(globalModule.getName());
-	                List<Feature> features = featureRepository.findByModuleKey(globalModule.getModuleKey());
-	                List<Permissions> permissions = permissionRepository.findAll(Sort.by("name"));
+            String accessToken = jwtUtil.generateToken(dto.getUserName(), tenantId);
+            String refreshToken = jwtUtil.generateRefreshToken(dto.getUserName(), tenantId);
 
-	                Set<RoleFeaturePermission> roleFeaturePermissions = new HashSet<>();
-	                for (Feature feature : features) {
-	                    for (Permissions perm : permissions) {
-	                        RoleFeaturePermission rfp = new RoleFeaturePermission();
-	                        rfp.setRole(role);
-	                        rfp.setFeature(feature);
-	                        rfp.setPermission(perm);
-	                        roleFeaturePermissions.add(rfp);
-	                    }
-	                }
-	                role.setFeaturePermissions(roleFeaturePermissions);
-	                adminUser.getRoles().add(role);
-	                em.persist(role);  // Persist the new role with feature-permissions
-	            }
+            List<String> roleNames = adminUser.getRoles().stream().map(Roles::getName).toList();
+            Set<String> flatPermissions = adminUser.getRoles().stream()
+                    .flatMap(r -> r.getPermissions().stream())
+                    .map(Permissions::getName).collect(Collectors.toSet());
 
-	            em.merge(adminUser); // Persist changes to user-role mapping
+            Set<String> permissionBundles = adminUser.getRoles().stream()
+                    .flatMap(r -> r.getPermissionBundles().stream())
+                    .map(PermissionBundle::getName).collect(Collectors.toSet());
 
-	            String accessToken = jwtUtil.generateToken(dto.getUserName(), tenantId);
-	            String refreshToken = jwtUtil.generateRefreshToken(dto.getUserName(), tenantId);
+            Map<String, Map<String, Set<String>>> moduleFeaturePermissions = new HashMap<>();
+            adminUser.getRoles().forEach(role -> {
+                role.getFeaturePermissions().forEach(rfp -> {
+                    String moduleName = rfp.getFeature().getModule().getName();
+                    String featureName = rfp.getFeature().getName();
+                    String permissionName = rfp.getPermission().getName();
+                    moduleFeaturePermissions.computeIfAbsent(moduleName, k -> new HashMap<>())
+                            .computeIfAbsent(featureName, k -> new HashSet<>()).add(permissionName);
+                });
+            });
 
-	            // Fetch user again with full info (optional)
-	            List<String> roleNames = adminUser.getRoles().stream().map(Roles::getName).toList();
-	            Set<String> flatPermissions = adminUser.getRoles().stream()
-	                    .flatMap(r -> r.getPermissions().stream())
-	                    .map(Permissions::getName)
-	                    .collect(Collectors.toSet());
+            List<Map<String, Object>> fieldPermissions = adminUser.getRoles().stream()
+                    .flatMap(role -> role.getFieldPermissions().stream().map(fp -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("role", role.getName());
+                        map.put("module", fp.getModule().getName());
+                        map.put("feature", fp.getFeature().getName());
+                        map.put("field", fp.getFieldName());
+                        map.put("action", fp.getAction());
+                        return map;
+                    })).collect(Collectors.toList());
 
-	            Set<String> permissionBundles = adminUser.getRoles().stream()
-	                    .flatMap(r -> r.getPermissionBundles().stream())
-	                    .map(PermissionBundle::getName)
-	                    .collect(Collectors.toSet());
+            List<Map<String, Object>> recordPermissions = Optional.ofNullable(adminUser.getRecordPermissions())
+                    .orElse(Set.of())
+                    .stream().map(rp -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("recordType", rp.getRecordType());
+                        map.put("recordId", rp.getRecordId());
+                        map.put("permissionType", rp.getPermissionType());
+                        return map;
+                    }).collect(Collectors.toList());
 
-	            Map<String, Map<String, Set<String>>> moduleFeaturePermissions = new HashMap<>();
-	            adminUser.getRoles().forEach(role -> {
-	                role.getFeaturePermissions().forEach(rfp -> {
-	                    String moduleName = rfp.getFeature().getModule().getName();
-	                    String featureName = rfp.getFeature().getName();
-	                    String permissionName = rfp.getPermission().getName();
+            Set<String> branchNames = adminUser.getBranches().stream().map(b -> b.getName()).collect(Collectors.toSet());
+            Set<String> locationNames = adminUser.getLocations().stream().map(l -> l.getName()).collect(Collectors.toSet());
 
-	                    moduleFeaturePermissions
-	                            .computeIfAbsent(moduleName, k -> new HashMap<>())
-	                            .computeIfAbsent(featureName, k -> new HashSet<>())
-	                            .add(permissionName);
-	                });
-	            });
+            AuthResponse authResponse = new AuthResponse();
+            authResponse.setAccess_token(accessToken);
+            authResponse.setRefresh_token(refreshToken);
+            authResponse.setOrgName(dto.getOrgName());
+            authResponse.setUsername(dto.getUserName());
+            authResponse.setTenantId(tenantId);
+            authResponse.setRoles(roleNames);
+            authResponse.setPermissions(flatPermissions);
+            authResponse.setModuleFeaturePermissions(moduleFeaturePermissions);
+            authResponse.setPermissionBundles(permissionBundles);
+            authResponse.setFieldLevelPermissions(fieldPermissions);
+            authResponse.setRecordLevelPermissions(recordPermissions);
+            authResponse.setBranches(branchNames);
+            authResponse.setLocations(locationNames);
 
-	            List<Map<String, Object>> fieldPermissions = adminUser.getRoles().stream()
-	                    .flatMap(role -> role.getFieldPermissions().stream().map(fp -> {
-	                        Map<String, Object> map = new HashMap<>();
-	                        map.put("role", role.getName());
-	                        map.put("module", fp.getModule().getName());
-	                        map.put("feature", fp.getFeature().getName());
-	                        map.put("field", fp.getFieldName());
-	                        map.put("action", fp.getAction());
-	                        return map;
-	                    })).collect(Collectors.toList());
+            return ResponseEntity.ok(new ApiResponse<>(true, "Tenant created successfully", authResponse));
 
-	            List<Map<String, Object>> recordPermissions = Optional.ofNullable(adminUser.getRecordPermissions())
-	                    .orElse(Set.of())
-	                    .stream()
-	                    .map(rp -> {
-	                        Map<String, Object> map = new HashMap<>();
-	                        map.put("recordType", rp.getRecordType());
-	                        map.put("recordId", rp.getRecordId());
-	                        map.put("permissionType", rp.getPermissionType());
-	                        return map;
-	                    }).collect(Collectors.toList());
+        } catch (IllegalArgumentException e) {
+            logger.warn("\u26A0\uFE0F Tenant creation failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            logger.error("\u274C Tenant creation error: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "Error creating tenant: " + e.getMessage(), null));
+        }
+    }
 
-	            Set<String> branchNames = adminUser.getBranches().stream().map(b -> b.getName()).collect(Collectors.toSet());
-	            Set<String> locationNames = adminUser.getLocations().stream().map(l -> l.getName()).collect(Collectors.toSet());
-
-	            AuthResponse authResponse = new AuthResponse();
-	            authResponse.setAccess_token(accessToken);
-	            authResponse.setRefresh_token(refreshToken);
-	            authResponse.setOrgName(dto.getOrgName());
-	            authResponse.setUsername(dto.getUserName());
-	            authResponse.setTenantId(tenantId);
-	            authResponse.setRoles(roleNames);
-	            authResponse.setPermissions(flatPermissions);
-	            authResponse.setModuleFeaturePermissions(moduleFeaturePermissions);
-	            authResponse.setPermissionBundles(permissionBundles);
-	            authResponse.setFieldLevelPermissions(fieldPermissions);
-	            authResponse.setRecordLevelPermissions(recordPermissions);
-	            authResponse.setBranches(branchNames);
-	            authResponse.setLocations(locationNames);
-
-	            return ResponseEntity.ok(new ApiResponse<>(true, "Tenant created successfully", authResponse));
-
-	        } catch (IllegalArgumentException e) {
-	            logger.warn("⚠️ Tenant creation failed: {}", e.getMessage());
-	            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
-	        } catch (Exception e) {
-	            logger.error("❌ Tenant creation error: {}", e.getMessage(), e);
-	            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-	                    .body(new ApiResponse<>(false, "Error creating tenant: " + e.getMessage(), null));
-	        }
-	    }
     public ResponseEntity<ApiResponse<Map<String, String>>> validateToken(HttpServletRequest request) {
         logger.info("🔍 Validating JWT token");
 

@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -12,8 +13,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-@Entity(name = "roles")
+import jakarta.persistence.Table;
+@Entity
+@Table(name = "roles")
 public class Roles {
     
     @Id 
@@ -21,6 +25,9 @@ public class Roles {
     private Long id;
     
     private String name;
+    
+    @Column(name = "is_default")
+    private boolean isDefault;
     
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -44,6 +51,19 @@ public class Roles {
         inverseJoinColumns = @JoinColumn(name = "bundle_id")
     )
     private Set<PermissionBundle> permissionBundles = new HashSet<>();
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "module_id")
+    private Module module;
+
+    public Module getModule() {
+        return module;
+    }
+
+    public void setModule(Module module) {
+        this.module = module;
+    }
+
 
     public Set<PermissionBundle> getPermissionBundles() {
         return permissionBundles;
@@ -94,4 +114,13 @@ public class Roles {
     public void setName(String name) {
         this.name = name;
     }
+
+    public boolean isDefault() {
+        return isDefault;
+    }
+
+    public void setDefault(boolean isDefault) {
+        this.isDefault = isDefault;
+    }
+	
 }

@@ -84,4 +84,74 @@ public class RoleService {
         // Save and return role with all associations
         return roleRepository.save(role);
     }
+    
+    @Transactional
+    public Roles updateRole(Long roleId, RoleCreateDTO dto) {
+        Roles role = roleRepository.findById(roleId)
+            .orElseThrow(() -> new RuntimeException("Role not found"));
+
+        role.setName(dto.getName());
+
+        // Clear and update permissions
+        role.getPermissions().clear();
+        role.getPermissions().addAll(permissionRepository.findAllById(dto.getPermissionIds()));
+
+        role.getPermissionBundles().clear();
+        role.getPermissionBundles().addAll(bundleRepository.findAllById(dto.getBundleIds()));
+
+        // Clear and re-assign feature permissions
+        roleFeaturePermissionRepository.deleteById(roleId);
+        Set<RoleFeaturePermission> featurePerms = new HashSet<>();
+        for (FeaturePermissionDTO fpd : dto.getFeaturePermissions()) {
+            Feature feature = featureRepository.findById(fpd.getFeatureId())
+                .orElseThrow(() -> new RuntimeException("Feature not found"));
+            Permissions perm = permissionRepository.findById(fpd.getPermissionId())
+                .orElseThrow(() -> new RuntimeException("Permission not found"));
+
+            RoleFeaturePermission rfp = new RoleFeaturePermission();
+            rfp.setRole(role);
+            rfp.setFeature(feature);
+            rfp.setPermission(perm);
+            featurePerms.add(rfp);
+        }
+        role.setFeaturePermissions(featurePerms);
+
+        // Clear and re-assign field permissions
+        fieldPermissionRepository.deleteById(roleId);
+        Set<FieldPermission> fieldPerms = new HashSet<>();
+        for (FieldPermissionDTO f : dto.getFieldPermissions()) {
+            Feature feature = featureRepository.findById(f.getFeatureId())
+                .orElseThrow(() -> new RuntimeException("Feature not found"));
+
+            FieldPermission fp = new FieldPermission();
+            fp.setRole(role);
+            fp.setFeature(feature);
+            fp.setFieldName(f.getFieldName());
+            fp.setAction(f.getAction());
+            fieldPerms.add(fp);
+        }
+        role.setFieldPermissions(fieldPerms);
+
+        return roleRepository.save(role);
+    }
+
+    public List<Roles> getAllRoles() {
+        return roleRepository.findAll();
+    }
+
+    public Roles getRoleById(Long id) {
+        return roleRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Role not found"));
+    }
+    
+    
+
+    @Transactional
+    public void deleteRole(Long id) {
+        if (!roleRepository.existsById(id)) {
+            throw new RuntimeException("Role not found");
+        }
+        roleRepository.deleteById(id);
+    }
+
 }
